@@ -94,7 +94,7 @@ public class StatisticNode implements Node {
      * by given {@code sampleCount}.
      */
     private transient volatile Metric rollingCounterInSecond = new ArrayMetric(SampleCountProperty.SAMPLE_COUNT,
-        IntervalProperty.INTERVAL);
+            IntervalProperty.INTERVAL);
 
     /**
      * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately set to 1000 milliseconds,
@@ -143,7 +143,7 @@ public class StatisticNode implements Node {
 
     private boolean isValidMetricNode(MetricNode node) {
         return node.getPassQps() > 0 || node.getBlockQps() > 0 || node.getSuccessQps() > 0
-            || node.getExceptionQps() > 0 || node.getRt() > 0 || node.getOccupiedPassQps() > 0;
+                || node.getExceptionQps() > 0 || node.getRt() > 0 || node.getOccupiedPassQps() > 0;
     }
 
     @Override
@@ -196,6 +196,12 @@ public class StatisticNode implements Node {
         return rollingCounterInMinute.exception();
     }
 
+
+    /**
+     * 在这个时间段合法通过的QPS,已通过的总数/当前一秒时间通过的QPS -> 得到QPS
+     *
+     * @return
+     */
     @Override
     public double passQps() {
         return rollingCounterInSecond.pass() / rollingCounterInSecond.getWindowIntervalInSec();
@@ -239,7 +245,7 @@ public class StatisticNode implements Node {
 
     @Override
     public int curThreadNum() {
-        return (int)curThreadNum.sum();
+        return (int) curThreadNum.sum();
     }
 
     @Override

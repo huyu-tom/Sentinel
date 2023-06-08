@@ -57,26 +57,30 @@ public class FlowRuleChecker {
     }
 
     public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node,
-                                                    int acquireCount) {
+                                             int acquireCount) {
         return canPassCheck(rule, context, node, acquireCount, false);
     }
 
     public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node, int acquireCount,
-                                                    boolean prioritized) {
+                                             boolean prioritized) {
         String limitApp = rule.getLimitApp();
         if (limitApp == null) {
             return true;
         }
 
         if (rule.isClusterMode()) {
+            //该规则是否是集群模式,走集群的规则
+            // 进行网络通信
             return passClusterCheck(rule, context, node, acquireCount, prioritized);
         }
 
+        //如果不是集群,走本地规则
         return passLocalCheck(rule, context, node, acquireCount, prioritized);
     }
 
     private static boolean passLocalCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount,
                                           boolean prioritized) {
+        //选择一个Node
         Node selectedNode = selectNodeByRequesterAndStrategy(rule, context, node);
         if (selectedNode == null) {
             return true;
@@ -114,9 +118,9 @@ public class FlowRuleChecker {
 
     static Node selectNodeByRequesterAndStrategy(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node) {
         // The limit app should not be empty.
-        String limitApp = rule.getLimitApp();
+        String limitApp = rule.getLimitApp(); //默认的limitApp是 default
         int strategy = rule.getStrategy();
-        String origin = context.getOrigin();
+        String origin = context.getOrigin(); //默认来源是空字符
 
         if (limitApp.equals(origin) && filterOrigin(origin)) {
             if (strategy == RuleConstant.STRATEGY_DIRECT) {
@@ -127,13 +131,15 @@ public class FlowRuleChecker {
             return selectReferenceNode(rule, context, node);
         } else if (RuleConstant.LIMIT_APP_DEFAULT.equals(limitApp)) {
             if (strategy == RuleConstant.STRATEGY_DIRECT) {
-                // Return the cluster node.
+                // Return the cluster node.   ,如果limitApp等于默认的,如果是策略是直接,就直接用这个资源的集群node
                 return node.getClusterNode();
             }
 
+            //如果是关联,就用关联的资源的名称的集群node
+            //如果是链条就是用当前传进来的node, (如果上下文的名称和关联的资源名称不一致,就返回null)
             return selectReferenceNode(rule, context, node);
         } else if (RuleConstant.LIMIT_APP_OTHER.equals(limitApp)
-            && FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
+                && FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
             if (strategy == RuleConstant.STRATEGY_DIRECT) {
                 return context.getOriginNode();
             }

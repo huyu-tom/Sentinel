@@ -47,9 +47,15 @@ public class DefaultController implements TrafficShapingController {
 
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
+        //获取当前已使用的额度
         int curCount = avgUsedTokens(node);
+
+        //如果当前使用的额度大于总额度
         if (curCount + acquireCount > count) {
+
+            //如果具有优先级并且策略是QPS的状况下,有额外的操作
             if (prioritized && grade == RuleConstant.FLOW_GRADE_QPS) {
+                //尝试占用下一个槽的份额
                 long currentTime;
                 long waitInMs;
                 currentTime = TimeUtil.currentTimeMillis();
@@ -65,14 +71,25 @@ public class DefaultController implements TrafficShapingController {
             }
             return false;
         }
+
+        //如果没有大于总额度,就直接放行
         return true;
     }
 
+
+    /**
+     * 统计之前已使用的过的额度或者次数
+     *
+     * @param node
+     * @return
+     */
     private int avgUsedTokens(Node node) {
         if (node == null) {
             return DEFAULT_AVG_USED_TOKENS;
         }
-        return grade == RuleConstant.FLOW_GRADE_THREAD ? node.curThreadNum() : (int)(node.passQps());
+
+        //根据不同的策略,拿到不同的统计额度
+        return grade == RuleConstant.FLOW_GRADE_THREAD ? node.curThreadNum() : (int) (node.passQps());
     }
 
     private void sleep(long timeMillis) {
