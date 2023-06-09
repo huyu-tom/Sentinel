@@ -67,6 +67,8 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
         if (entry == null) {
             return;
         }
+
+        //异常数  -> 在单位时间里面的异常数和总的请求数
         Throwable error = entry.getError();
         SimpleErrorCounter counter = stat.currentWindow().value();
         if (error != null) {
@@ -78,20 +80,25 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
     }
 
     private void handleStateChangeWhenThresholdExceeded(Throwable error) {
+        //如果是打开状态,就直接返回
         if (currentState.get() == State.OPEN) {
             return;
         }
-        
+
+        //如果是半开状态(说明可能这个是放了那个流量)
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             if (error == null) {
+                //这个流量没有出现异常,将其变为关闭
                 fromHalfOpenToClose();
             } else {
+                //这个流量出现了异常,就变成打开
                 fromHalfOpenToOpen(1.0d);
             }
             return;
         }
-        
+
+        //这里是关闭的状态,看看现在是个什么请看
         List<SimpleErrorCounter> counters = stat.values();
         long errCount = 0;
         long totalCount = 0;
@@ -99,14 +106,22 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
             errCount += counter.errorCount.sum();
             totalCount += counter.totalCount.sum();
         }
+
+        //如果小于最小请求数,连最小请求数都没有达到
         if (totalCount < minRequestAmount) {
             return;
         }
+
+        //
         double curCount = errCount;
+
+        //如果当前的策略是异常频率
         if (strategy == DEGRADE_GRADE_EXCEPTION_RATIO) {
             // Use errorRatio
             curCount = errCount * 1.0d / totalCount;
         }
+
+        //如果大于指定的频率,说明就变成了打开了,或者是策略是异常个数，如果异常个数>指定的个数,说明也打开了
         if (curCount > threshold) {
             transformToOpen(curCount);
         }
@@ -138,9 +153,9 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
         @Override
         public String toString() {
             return "SimpleErrorCounter{" +
-                "errorCount=" + errorCount +
-                ", totalCount=" + totalCount +
-                '}';
+                    "errorCount=" + errorCount +
+                    ", totalCount=" + totalCount +
+                    '}';
         }
     }
 

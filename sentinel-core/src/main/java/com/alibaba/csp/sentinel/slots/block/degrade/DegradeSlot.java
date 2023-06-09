@@ -59,11 +59,14 @@ public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
     public void exit(Context context, ResourceWrapper r, int count, Object... args) {
+        //有熔断和降级的异常
         Entry curEntry = context.getCurEntry();
         if (curEntry.getBlockError() != null) {
             fireExit(context, r, count, args);
             return;
         }
+
+        //没有异常的时候
         List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
         if (circuitBreakers == null || circuitBreakers.isEmpty()) {
             fireExit(context, r, count, args);

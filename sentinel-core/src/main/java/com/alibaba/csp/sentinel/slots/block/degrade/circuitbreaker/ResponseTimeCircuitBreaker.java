@@ -63,11 +63,15 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     @Override
     public void onRequestComplete(Context context) {
+
+        //进行统计,慢请求的个数和总请求的个数
         SlowRequestCounter counter = slidingCounter.currentWindow().value();
         Entry entry = context.getCurEntry();
         if (entry == null) {
             return;
         }
+
+        //慢请求 > 指定的那个响应时间
         long completeTime = entry.getCompleteTimestamp();
         if (completeTime <= 0) {
             completeTime = TimeUtil.currentTimeMillis();
@@ -78,6 +82,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         }
         counter.totalCount.add(1);
 
+
         handleStateChangeWhenThresholdExceeded(rt);
     }
 
@@ -85,7 +90,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         if (currentState.get() == State.OPEN) {
             return;
         }
-        
+
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
@@ -143,9 +148,9 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         @Override
         public String toString() {
             return "SlowRequestCounter{" +
-                "slowCount=" + slowCount +
-                ", totalCount=" + totalCount +
-                '}';
+                    "slowCount=" + slowCount +
+                    ", totalCount=" + totalCount +
+                    '}';
         }
     }
 

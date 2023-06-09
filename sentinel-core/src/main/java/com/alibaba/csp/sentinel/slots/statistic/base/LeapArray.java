@@ -63,16 +63,26 @@ public abstract class LeapArray<T> {
         AssertUtil.isTrue(intervalInMs > 0, "total time interval of the sliding window should be positive");
         AssertUtil.isTrue(intervalInMs % sampleCount == 0, "time span needs to be evenly divided");
 
+
+        //一个时间段内变成多个窗口来完成，每个窗口所占用的时间(单位是ms)
         this.windowLengthInMs = intervalInMs / sampleCount;
+
+        //指定的时间段内
         this.intervalInMs = intervalInMs;
+
+        //指定的时间段内换算为s单位
         this.intervalInSecond = intervalInMs / 1000.0;
+
+        //在指定的时间段内(ms为单位)有几个窗口
         this.sampleCount = sampleCount;
 
+        //窗口用原子数组来表示
         this.array = new AtomicReferenceArray<>(sampleCount);
     }
 
     /**
      * Get the bucket at current timestamp.
+     * 获取当前窗口的信息
      *
      * @return the bucket at current timestamp
      */
@@ -100,7 +110,7 @@ public abstract class LeapArray<T> {
     private int calculateTimeIdx(/*@Valid*/ long timeMillis) {
         long timeId = timeMillis / windowLengthInMs;
         // Calculate current index so we can map the timestamp to the leap array.
-        return (int)(timeId % array.length());
+        return (int) (timeId % array.length());
     }
 
     protected long calculateWindowStart(/*@Valid*/ long timeMillis) {
@@ -268,6 +278,9 @@ public abstract class LeapArray<T> {
     }
 
     public boolean isWindowDeprecated(long time, WindowWrap<T> windowWrap) {
+        // 900 -  800 > 1000 返回 false 说明是没有过期的窗口
+        // 1100 - 1000 > 100 返回false 说明是没有过期的窗口
+        // 2100 - 1000 > 1000 返回true 说明是已经过期的窗口
         return time - windowWrap.windowStart() > intervalInMs;
     }
 

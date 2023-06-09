@@ -47,7 +47,8 @@ import java.util.Objects;
  */
 public class DegradeRule extends AbstractRule {
 
-    public DegradeRule() {}
+    public DegradeRule() {
+    }
 
     public DegradeRule(String resourceName) {
         setResource(resourceName);
@@ -65,17 +66,20 @@ public class DegradeRule extends AbstractRule {
      *     <li>In exception ratio mode, it means exception ratio which between 0.0 and 1.0.</li>
      *     <li>In exception count mode, it means exception count</li>
      * <ul/>
+     * 异常个数,异常频率个数,响应时间频率个数
      */
     private double count;
 
     /**
      * Recovery timeout (in seconds) when circuit breaker opens. After the timeout, the circuit breaker will
      * transform to half-open state for trying a few requests.
+     * open -> half open 的一个时间间隔
      */
     private int timeWindow;
 
     /**
      * Minimum number of requests (in an active statistic time span) that can trigger circuit breaking.
+     * 当总请求的个数<=指定的最小的请求个数才触发,默认是5个
      *
      * @since 1.7.0
      */
@@ -83,6 +87,7 @@ public class DegradeRule extends AbstractRule {
 
     /**
      * The threshold of slow request ratio in RT mode.
+     * 慢比例阈值是1
      *
      * @since 1.8.0
      */
@@ -90,6 +95,7 @@ public class DegradeRule extends AbstractRule {
 
     /**
      * The interval statistics duration in millisecond.
+     * 一个时间窗口
      *
      * @since 1.8.0
      */
@@ -151,35 +157,41 @@ public class DegradeRule extends AbstractRule {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
-        if (!super.equals(o)) { return false; }
-        DegradeRule rule = (DegradeRule)o;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        DegradeRule rule = (DegradeRule) o;
         return Double.compare(rule.count, count) == 0 &&
-            timeWindow == rule.timeWindow &&
-            grade == rule.grade &&
-            minRequestAmount == rule.minRequestAmount &&
-            Double.compare(rule.slowRatioThreshold, slowRatioThreshold) == 0 &&
-            statIntervalMs == rule.statIntervalMs;
+                timeWindow == rule.timeWindow &&
+                grade == rule.grade &&
+                minRequestAmount == rule.minRequestAmount &&
+                Double.compare(rule.slowRatioThreshold, slowRatioThreshold) == 0 &&
+                statIntervalMs == rule.statIntervalMs;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), count, timeWindow, grade, minRequestAmount,
-            slowRatioThreshold, statIntervalMs);
+                slowRatioThreshold, statIntervalMs);
     }
 
     @Override
     public String toString() {
         return "DegradeRule{" +
-            "resource=" + getResource() +
-            ", grade=" + grade +
-            ", count=" + count +
-            ", limitApp=" + getLimitApp() +
-            ", timeWindow=" + timeWindow +
-            ", minRequestAmount=" + minRequestAmount +
-            ", slowRatioThreshold=" + slowRatioThreshold +
-            ", statIntervalMs=" + statIntervalMs +
-            '}';
+                "resource=" + getResource() +
+                ", grade=" + grade +
+                ", count=" + count +
+                ", limitApp=" + getLimitApp() +
+                ", timeWindow=" + timeWindow +
+                ", minRequestAmount=" + minRequestAmount +
+                ", slowRatioThreshold=" + slowRatioThreshold +
+                ", statIntervalMs=" + statIntervalMs +
+                '}';
     }
 }

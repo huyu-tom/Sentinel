@@ -290,6 +290,12 @@ public class StatisticNode implements Node {
         rollingCounterInSecond.debug();
     }
 
+    /**
+     * @param currentTime  current time millis. 当前时间
+     * @param acquireCount tokens count to acquire. 尝试获取的token
+     * @param threshold    qps threshold. 临界点
+     * @return
+     */
     @Override
     public long tryOccupyNext(long currentTime, int acquireCount, double threshold) {
         double maxCount = threshold * IntervalProperty.INTERVAL / 1000;

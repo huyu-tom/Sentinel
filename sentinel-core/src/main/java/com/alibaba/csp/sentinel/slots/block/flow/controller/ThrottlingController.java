@@ -102,9 +102,16 @@ public class ThrottlingController implements TrafficShapingController {
         }
     }
 
+
+    /**
+     * @param acquireCount
+     * @param maxCountPerStat 最大的计数
+     * @return
+     */
     private boolean checkPassUsingCachedMs(int acquireCount, double maxCountPerStat) {
         long currentTime = TimeUtil.currentTimeMillis();
         // Calculate the interval between every two requests.
+        //计算每2个请求之间的间隔
         long costTime = Math.round(1.0d * statDurationMs * acquireCount / maxCountPerStat);
 
         // Expected pass time of this request.
@@ -115,7 +122,7 @@ public class ThrottlingController implements TrafficShapingController {
             latestPassedTime.set(currentTime);
             return true;
         } else {
-            // Calculate the time to wait.
+            // Calculate the time to wait. 计算等待时间
             long waitTime = costTime + latestPassedTime.get() - TimeUtil.currentTimeMillis();
             if (waitTime > maxQueueingTimeMs) {
                 return false;
