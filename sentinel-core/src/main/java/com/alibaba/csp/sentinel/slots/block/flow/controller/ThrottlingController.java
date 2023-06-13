@@ -25,6 +25,10 @@ import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
+ * 漏斗算法
+ * 无论请求量又多大,最终都是以均匀的速度流出,
+ * 假设 100q/s ,假设一秒最多达到100的qps，那么每个请求过去是需要10ms的,记录一下最后一次请求的时间
+ *
  * @author Eric Zhao
  * @author jialiang.linjl
  * @since 2.0
@@ -51,9 +55,17 @@ public class ThrottlingController implements TrafficShapingController {
         AssertUtil.assertTrue(statDurationMs > 0, "statDurationMs should be positive");
         AssertUtil.assertTrue(maxCountPerStat >= 0, "maxCountPerStat should be >= 0");
         AssertUtil.assertTrue(queueingTimeoutMs >= 0, "queueingTimeoutMs should be >= 0");
+
+        //最大的等待时间(ms),如果需要等待的时间过大,肯定会拖累系统,就直接拒绝
         this.maxQueueingTimeMs = queueingTimeoutMs;
+
+
+        //控制速率(例如100q/s , 1s只允许通过100个请求,所以说一个请求的时间间隔这里大概是10ms)
+        //最大的次数
         this.count = maxCountPerStat;
+        //时间间隔
         this.statDurationMs = statDurationMs;
+
         // Use nanoSeconds when durationMs%count != 0 or count/durationMs> 1 (to be accurate)
         if (maxCountPerStat > 0) {
             this.useNanoSeconds = statDurationMs % Math.round(maxCountPerStat) != 0 || maxCountPerStat / statDurationMs > 1;
@@ -68,33 +80,53 @@ public class ThrottlingController implements TrafficShapingController {
     }
 
     private boolean checkPassUsingNanoSeconds(int acquireCount, double maxCountPerStat) {
+        //最大等待纳秒
         final long maxQueueingTimeNs = maxQueueingTimeMs * MS_TO_NS_OFFSET;
+
+        //获取当前请求的纳秒
         long currentTime = System.nanoTime();
-        // Calculate the interval between every two requests.
+
+
+        // Calculate the interval between every two requests. 计算出每2个请求之间的需要等待的时间
         final long costTimeNs = Math.round(1.0d * MS_TO_NS_OFFSET * statDurationMs * acquireCount / maxCountPerStat);
 
-        // Expected pass time of this request.
+        // Expected pass time of this request. 此次请求预期通过的时间
         long expectedTime = costTimeNs + latestPassedTime.get();
+
 
         if (expectedTime <= currentTime) {
             // Contention may exist here, but it's okay.
+            //期望的可以过的时间正好小于等于当前的时间,说明可以通过
             latestPassedTime.set(currentTime);
             return true;
         } else {
             final long curNanos = System.nanoTime();
-            // Calculate the time to wait.
+            // Calculate the time to wait. 期望时间-当前时间 变成了需要等待的时间,为什么要重新计算,可能希望正确一点(因为是多线程通行(对于latestPassedTime变量的修改))
             long waitTime = costTimeNs + latestPassedTime.get() - curNanos;
+
+            //如果等待的时间大于我们的最大的等待时间,那我们就直接拒绝
             if (waitTime > maxQueueingTimeNs) {
                 return false;
             }
 
+
+            //这个请求应该在的时间点,因为记录了最后一次的时间加上现在这个请求应该消耗的时间
             long oldTime = latestPassedTime.addAndGet(costTimeNs);
+
+
+            //这次请求应该的请求时间减去当前的时间得到一个需要等待的时间, 这个等待时候可能是负数,为负数就直接放行
             waitTime = oldTime - curNanos;
+
+            //需要等待的时间大于最大的等待时间,直接拒绝
             if (waitTime > maxQueueingTimeNs) {
+                //并且将之前加上的时间进行扣减掉
                 latestPassedTime.addAndGet(-costTimeNs);
                 return false;
             }
+
+
             // in race condition waitTime may <= 0
+            // 进行休眠
             if (waitTime > 0) {
                 sleepNanos(waitTime);
             }
@@ -104,12 +136,14 @@ public class ThrottlingController implements TrafficShapingController {
 
 
     /**
-     * @param acquireCount
+     * @param acquireCount    当前尝试采用多少次数
      * @param maxCountPerStat 最大的计数
      * @return
      */
     private boolean checkPassUsingCachedMs(int acquireCount, double maxCountPerStat) {
         long currentTime = TimeUtil.currentTimeMillis();
+
+
         // Calculate the interval between every two requests.
         //计算每2个请求之间的间隔
         long costTime = Math.round(1.0d * statDurationMs * acquireCount / maxCountPerStat);
