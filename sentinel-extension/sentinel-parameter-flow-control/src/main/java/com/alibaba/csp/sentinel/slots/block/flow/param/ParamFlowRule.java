@@ -33,7 +33,8 @@ import com.alibaba.csp.sentinel.slots.block.RuleConstant;
  */
 public class ParamFlowRule extends AbstractRule {
 
-    public ParamFlowRule() {}
+    public ParamFlowRule() {
+    }
 
     public ParamFlowRule(String resourceName) {
         setResource(resourceName);
@@ -59,16 +60,24 @@ public class ParamFlowRule extends AbstractRule {
      */
     private int controlBehavior = RuleConstant.CONTROL_BEHAVIOR_DEFAULT;
 
+    //队列时间
     private int maxQueueingTimeMs = 0;
+
+    //突发次数
     private int burstCount = 0;
+
+    //周期
     private long durationInSec = 1;
 
     /**
+     * qps的特定的参数
      * Original exclusion items of parameters.
+     * 指定一些特殊值,按照特殊值获取次数
      */
     private List<ParamFlowItem> paramFlowItemList = new ArrayList<ParamFlowItem>();
 
     /**
+     * 线程数的特定的参数
      * Parsed exclusion items of parameters. Only for internal use.
      */
     private Map<Object, Integer> hotItems = new HashMap<Object, Integer>();
@@ -77,6 +86,8 @@ public class ParamFlowRule extends AbstractRule {
      * Indicating whether the rule is for cluster mode.
      */
     private boolean clusterMode = false;
+
+
     /**
      * Cluster mode specific config for parameter flow rule.
      */
@@ -190,21 +201,45 @@ public class ParamFlowRule extends AbstractRule {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
-        if (!super.equals(o)) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
 
-        ParamFlowRule that = (ParamFlowRule)o;
+        ParamFlowRule that = (ParamFlowRule) o;
 
-        if (grade != that.grade) { return false; }
-        if (Double.compare(that.count, count) != 0) { return false; }
-        if (controlBehavior != that.controlBehavior) { return false; }
-        if (maxQueueingTimeMs != that.maxQueueingTimeMs) { return false; }
-        if (burstCount != that.burstCount) { return false; }
-        if (durationInSec != that.durationInSec) { return false; }
-        if (clusterMode != that.clusterMode) { return false; }
-        if (!Objects.equals(paramIdx, that.paramIdx)) { return false; }
-        if (!Objects.equals(paramFlowItemList, that.paramFlowItemList)) { return false; }
+        if (grade != that.grade) {
+            return false;
+        }
+        if (Double.compare(that.count, count) != 0) {
+            return false;
+        }
+        if (controlBehavior != that.controlBehavior) {
+            return false;
+        }
+        if (maxQueueingTimeMs != that.maxQueueingTimeMs) {
+            return false;
+        }
+        if (burstCount != that.burstCount) {
+            return false;
+        }
+        if (durationInSec != that.durationInSec) {
+            return false;
+        }
+        if (clusterMode != that.clusterMode) {
+            return false;
+        }
+        if (!Objects.equals(paramIdx, that.paramIdx)) {
+            return false;
+        }
+        if (!Objects.equals(paramFlowItemList, that.paramFlowItemList)) {
+            return false;
+        }
         return Objects.equals(clusterConfig, that.clusterConfig);
     }
 
@@ -215,11 +250,11 @@ public class ParamFlowRule extends AbstractRule {
         result = 31 * result + grade;
         result = 31 * result + (paramIdx != null ? paramIdx.hashCode() : 0);
         temp = Double.doubleToLongBits(count);
-        result = 31 * result + (int)(temp ^ (temp >>> 32));
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
         result = 31 * result + controlBehavior;
         result = 31 * result + maxQueueingTimeMs;
         result = 31 * result + burstCount;
-        result = 31 * result + (int)(durationInSec ^ (durationInSec >>> 32));
+        result = 31 * result + (int) (durationInSec ^ (durationInSec >>> 32));
         result = 31 * result + (paramFlowItemList != null ? paramFlowItemList.hashCode() : 0);
         result = 31 * result + (clusterMode ? 1 : 0);
         result = 31 * result + (clusterConfig != null ? clusterConfig.hashCode() : 0);
@@ -228,17 +263,6 @@ public class ParamFlowRule extends AbstractRule {
 
     @Override
     public String toString() {
-        return "ParamFlowRule{" +
-            "grade=" + grade +
-            ", paramIdx=" + paramIdx +
-            ", count=" + count +
-            ", controlBehavior=" + controlBehavior +
-            ", maxQueueingTimeMs=" + maxQueueingTimeMs +
-            ", burstCount=" + burstCount +
-            ", durationInSec=" + durationInSec +
-            ", paramFlowItemList=" + paramFlowItemList +
-            ", clusterMode=" + clusterMode +
-            ", clusterConfig=" + clusterConfig +
-            '}';
+        return "ParamFlowRule{" + "grade=" + grade + ", paramIdx=" + paramIdx + ", count=" + count + ", controlBehavior=" + controlBehavior + ", maxQueueingTimeMs=" + maxQueueingTimeMs + ", burstCount=" + burstCount + ", durationInSec=" + durationInSec + ", paramFlowItemList=" + paramFlowItemList + ", clusterMode=" + clusterMode + ", clusterConfig=" + clusterConfig + '}';
     }
 }

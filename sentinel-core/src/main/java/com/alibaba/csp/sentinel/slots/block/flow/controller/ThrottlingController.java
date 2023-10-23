@@ -39,12 +39,19 @@ public class ThrottlingController implements TrafficShapingController {
 
     private static final long MS_TO_NS_OFFSET = TimeUnit.MILLISECONDS.toNanos(1);
 
+    //最大的等待时间
     private final int maxQueueingTimeMs;
+
+    //时间间隔
     private final int statDurationMs;
 
+    //在statDurationMs指定的时间间隔之内可以通过多少个请求
     private final double count;
+
+    //是否使用纳秒,相对来说比较正确
     private final boolean useNanoSeconds;
 
+    //最后通过的时间
     private final AtomicLong latestPassedTime = new AtomicLong(-1);
 
     public ThrottlingController(int queueingTimeoutMs, double maxCountPerStat) {
@@ -79,6 +86,12 @@ public class ThrottlingController implements TrafficShapingController {
         return canPass(node, acquireCount, false);
     }
 
+
+    /**
+     * @param acquireCount
+     * @param maxCountPerStat
+     * @return
+     */
     private boolean checkPassUsingNanoSeconds(int acquireCount, double maxCountPerStat) {
         //最大等待纳秒
         final long maxQueueingTimeNs = maxQueueingTimeMs * MS_TO_NS_OFFSET;
@@ -87,6 +100,7 @@ public class ThrottlingController implements TrafficShapingController {
         long currentTime = System.nanoTime();
 
 
+        //该请求需要消耗的时间
         // Calculate the interval between every two requests. 计算出每2个请求之间的需要等待的时间
         final long costTimeNs = Math.round(1.0d * MS_TO_NS_OFFSET * statDurationMs * acquireCount / maxCountPerStat);
 

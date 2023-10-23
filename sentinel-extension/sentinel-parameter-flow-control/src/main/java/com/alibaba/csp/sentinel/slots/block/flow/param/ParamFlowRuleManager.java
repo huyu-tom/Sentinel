@@ -149,5 +149,6 @@ public final class ParamFlowRuleManager {
         }
     }
 
-    private ParamFlowRuleManager() {}
+    private ParamFlowRuleManager() {
+    }
 }

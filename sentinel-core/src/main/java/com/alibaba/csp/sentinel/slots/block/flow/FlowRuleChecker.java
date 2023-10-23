@@ -41,8 +41,7 @@ import com.alibaba.csp.sentinel.util.function.Function;
  */
 public class FlowRuleChecker {
 
-    public void checkFlow(Function<String, Collection<FlowRule>> ruleProvider, ResourceWrapper resource,
-                          Context context, DefaultNode node, int count, boolean prioritized) throws BlockException {
+    public void checkFlow(Function<String, Collection<FlowRule>> ruleProvider, ResourceWrapper resource, Context context, DefaultNode node, int count, boolean prioritized) throws BlockException {
         if (ruleProvider == null || resource == null) {
             return;
         }
@@ -56,13 +55,11 @@ public class FlowRuleChecker {
         }
     }
 
-    public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node,
-                                             int acquireCount) {
+    public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node, int acquireCount) {
         return canPassCheck(rule, context, node, acquireCount, false);
     }
 
-    public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node, int acquireCount,
-                                             boolean prioritized) {
+    public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node, int acquireCount, boolean prioritized) {
         String limitApp = rule.getLimitApp();
         if (limitApp == null) {
             return true;
@@ -78,8 +75,7 @@ public class FlowRuleChecker {
         return passLocalCheck(rule, context, node, acquireCount, prioritized);
     }
 
-    private static boolean passLocalCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount,
-                                          boolean prioritized) {
+    private static boolean passLocalCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount, boolean prioritized) {
         //选择一个Node
         Node selectedNode = selectNodeByRequesterAndStrategy(rule, context, node);
         if (selectedNode == null) {
@@ -138,8 +134,7 @@ public class FlowRuleChecker {
             //如果是关联,就用关联的资源的名称的集群node
             //如果是链条就是用当前传进来的node, (如果上下文的名称和关联的资源名称不一致,就返回null)
             return selectReferenceNode(rule, context, node);
-        } else if (RuleConstant.LIMIT_APP_OTHER.equals(limitApp)
-                && FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
+        } else if (RuleConstant.LIMIT_APP_OTHER.equals(limitApp) && FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
             if (strategy == RuleConstant.STRATEGY_DIRECT) {
                 return context.getOriginNode();
             }
@@ -150,8 +145,7 @@ public class FlowRuleChecker {
         return null;
     }
 
-    private static boolean passClusterCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount,
-                                            boolean prioritized) {
+    private static boolean passClusterCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount, boolean prioritized) {
         try {
             TokenService clusterService = pickClusterService();
             if (clusterService == null) {
@@ -169,8 +163,7 @@ public class FlowRuleChecker {
         return fallbackToLocalOrPass(rule, context, node, acquireCount, prioritized);
     }
 
-    private static boolean fallbackToLocalOrPass(FlowRule rule, Context context, DefaultNode node, int acquireCount,
-                                                 boolean prioritized) {
+    private static boolean fallbackToLocalOrPass(FlowRule rule, Context context, DefaultNode node, int acquireCount, boolean prioritized) {
         if (rule.getClusterConfig().isFallbackToLocalWhenFail()) {
             return passLocalCheck(rule, context, node, acquireCount, prioritized);
         } else {
@@ -189,9 +182,7 @@ public class FlowRuleChecker {
         return null;
     }
 
-    private static boolean applyTokenResult(/*@NonNull*/ TokenResult result, FlowRule rule, Context context,
-                                                         DefaultNode node,
-                                                         int acquireCount, boolean prioritized) {
+    private static boolean applyTokenResult(/*@NonNull*/ TokenResult result, FlowRule rule, Context context, DefaultNode node, int acquireCount, boolean prioritized) {
         switch (result.getStatus()) {
             case TokenResultStatus.OK:
                 return true;

@@ -48,8 +48,7 @@ public class CtSph implements Sph {
      * Same resource({@link ResourceWrapper#equals(Object)}) will share the same
      * {@link ProcessorSlotChain}, no matter in which {@link Context}.
      */
-    private static volatile Map<ResourceWrapper, ProcessorSlotChain> chainMap
-            = new HashMap<ResourceWrapper, ProcessorSlotChain>();
+    private static volatile Map<ResourceWrapper, ProcessorSlotChain> chainMap = new HashMap<ResourceWrapper, ProcessorSlotChain>();
 
     private static final Object LOCK = new Object();
 
@@ -61,8 +60,7 @@ public class CtSph implements Sph {
         return entry;
     }
 
-    private AsyncEntry asyncEntryWithPriorityInternal(ResourceWrapper resourceWrapper, int count, boolean prioritized,
-                                                      Object... args) throws BlockException {
+    private AsyncEntry asyncEntryWithPriorityInternal(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args) throws BlockException {
         Context context = ContextUtil.getContext();
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
@@ -109,8 +107,7 @@ public class CtSph implements Sph {
         return asyncEntry;
     }
 
-    private AsyncEntry asyncEntryInternal(ResourceWrapper resourceWrapper, int count, Object... args)
-            throws BlockException {
+    private AsyncEntry asyncEntryInternal(ResourceWrapper resourceWrapper, int count, Object... args) throws BlockException {
         return asyncEntryWithPriorityInternal(resourceWrapper, count, false, args);
     }
 
@@ -128,10 +125,10 @@ public class CtSph implements Sph {
      * @return
      * @throws BlockException
      */
-    private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
-            throws BlockException {
+    private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args) throws BlockException {
 
         //从上下文获取
+        //存储这入口node(DefaultNode)
         Context context = ContextUtil.getContext();
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
@@ -149,7 +146,7 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
 
-        //每个资源都有自己的链条
+        //每个资源都有自己的链条,最大是6000条
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -160,6 +157,19 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
 
+
+        //   允许资源嵌套(如果是同一个上下文,是同一个入口Node)
+        //
+        //   try{
+        //      资源A
+        //       b()
+        //   }
+        //
+        //   b()
+        //   try{
+        //     资源B
+        //   }
+        //
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
@@ -220,8 +230,7 @@ public class CtSph implements Sph {
                     }
 
                     chain = SlotChainProvider.newSlotChain();
-                    Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
-                            chainMap.size() + 1);
+                    Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(chainMap.size() + 1);
                     newMap.putAll(chainMap);
                     newMap.put(resourceWrapper, chain);
                     chainMap = newMap;
@@ -345,28 +354,24 @@ public class CtSph implements Sph {
     }
 
     @Override
-    public Entry entryWithPriority(String name, EntryType type, int count, boolean prioritized, Object... args)
-            throws BlockException {
+    public Entry entryWithPriority(String name, EntryType type, int count, boolean prioritized, Object... args) throws BlockException {
         StringResourceWrapper resource = new StringResourceWrapper(name, type);
         return entryWithPriority(resource, count, prioritized, args);
     }
 
     @Override
-    public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, Object[] args)
-            throws BlockException {
+    public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, Object[] args) throws BlockException {
         return entryWithType(name, resourceType, entryType, count, false, args);
     }
 
     @Override
-    public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, boolean prioritized,
-                               Object[] args) throws BlockException {
+    public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, boolean prioritized, Object[] args) throws BlockException {
         StringResourceWrapper resource = new StringResourceWrapper(name, entryType, resourceType);
         return entryWithPriority(resource, count, prioritized, args);
     }
 
     @Override
-    public AsyncEntry asyncEntryWithType(String name, int resourceType, EntryType entryType, int count,
-                                         boolean prioritized, Object[] args) throws BlockException {
+    public AsyncEntry asyncEntryWithType(String name, int resourceType, EntryType entryType, int count, boolean prioritized, Object[] args) throws BlockException {
         StringResourceWrapper resource = new StringResourceWrapper(name, entryType, resourceType);
         return asyncEntryWithPriorityInternal(resource, count, prioritized, args);
     }

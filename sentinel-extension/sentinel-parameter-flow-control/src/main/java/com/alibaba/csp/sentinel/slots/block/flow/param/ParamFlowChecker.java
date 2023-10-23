@@ -45,8 +45,7 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
  */
 public final class ParamFlowChecker {
 
-    public static boolean passCheck(ResourceWrapper resourceWrapper, /*@Valid*/ ParamFlowRule rule, /*@Valid*/ int count,
-                             Object... args) {
+    public static boolean passCheck(ResourceWrapper resourceWrapper, /*@Valid*/ ParamFlowRule rule, /*@Valid*/ int count, Object... args) {
         if (args == null) {
             return true;
         }
@@ -68,6 +67,8 @@ public final class ParamFlowChecker {
             return true;
         }
 
+
+        //如果是集群,走集群的逻辑(网络请求)
         if (rule.isClusterMode() && rule.getGrade() == RuleConstant.FLOW_GRADE_QPS) {
             return passClusterCheck(resourceWrapper, rule, count, value);
         }
@@ -75,11 +76,10 @@ public final class ParamFlowChecker {
         return passLocalCheck(resourceWrapper, rule, count, value);
     }
 
-    private static boolean passLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count,
-                                          Object value) {
+    private static boolean passLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count, Object value) {
         try {
             if (Collection.class.isAssignableFrom(value.getClass())) {
-                for (Object param : ((Collection)value)) {
+                for (Object param : ((Collection) value)) {
                     if (!passSingleValueCheck(resourceWrapper, rule, count, param)) {
                         return false;
                     }
@@ -102,32 +102,43 @@ public final class ParamFlowChecker {
         return true;
     }
 
-    static boolean passSingleValueCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount,
-                                        Object value) {
+    static boolean passSingleValueCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount, Object value) {
         if (rule.getGrade() == RuleConstant.FLOW_GRADE_QPS) {
             if (rule.getControlBehavior() == RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER) {
+                //匀速(漏桶算法)
                 return passThrottleLocalCheck(resourceWrapper, rule, acquireCount, value);
             } else {
+                //令牌桶算法(记住最后一次生成token的时间,记录最后生成token的时间段的token个数)
+                // 如果当前时间-最后一次发放的时间>(设定的时间)
+                //   说明要重新生成新的 token的个数和当前生成token的时间
+                //  小于或者等于的情况
+                //   获取当前的token的个数,如果当前的token个数>=当前需要的token的个数,说明就可以过去了
+                //   如果<的话,说明是不能过去的
                 return passDefaultLocalCheck(resourceWrapper, rule, acquireCount, value);
             }
         } else if (rule.getGrade() == RuleConstant.FLOW_GRADE_THREAD) {
+            //线程数(能执行此方法说明就是一次线程(但是在jdk21的时候,虚拟线程(成本较低)))
             Set<Object> exclusionItems = rule.getParsedHotItems().keySet();
             long threadCount = getParameterMetric(resourceWrapper).getThreadCount(rule.getParamIdx(), value);
             if (exclusionItems.contains(value)) {
                 int itemThreshold = rule.getParsedHotItems().get(value);
                 return ++threadCount <= itemThreshold;
             }
-            long threshold = (long)rule.getCount();
+            long threshold = (long) rule.getCount();
             return ++threadCount <= threshold;
         }
 
         return true;
     }
 
-    static boolean passDefaultLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount,
-                                         Object value) {
+    static boolean passDefaultLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount, Object value) {
+        // 一个资源对应多个
         ParameterMetric metric = getParameterMetric(resourceWrapper);
+
+        //对于某个热点数据值,在某一秒区间剩余的token次数
         CacheMap<Object, AtomicLong> tokenCounters = metric == null ? null : metric.getRuleTokenCounter(rule);
+
+        //当前最后一秒的生成
         CacheMap<Object, AtomicLong> timeCounters = metric == null ? null : metric.getRuleTimeCounter(rule);
 
         if (tokenCounters == null || timeCounters == null) {
@@ -136,7 +147,7 @@ public final class ParamFlowChecker {
 
         // Calculate max token count (threshold)
         Set<Object> exclusionItems = rule.getParsedHotItems().keySet();
-        long tokenCount = (long)rule.getCount();
+        long tokenCount = (long) rule.getCount();
         if (exclusionItems.contains(value)) {
             tokenCount = rule.getParsedHotItems().get(value);
         }
@@ -164,6 +175,7 @@ public final class ParamFlowChecker {
             long passTime = currentTime - lastAddTokenTime.get();
             // A simplified token bucket algorithm that will replenish the tokens only when statistic window has passed.
             if (passTime > rule.getDurationInSec() * 1000) {
+                //要生成新的token了
                 AtomicLong oldQps = tokenCounters.putIfAbsent(value, new AtomicLong(maxCount - acquireCount));
                 if (oldQps == null) {
                     // Might not be accurate here.
@@ -172,8 +184,7 @@ public final class ParamFlowChecker {
                 } else {
                     long restQps = oldQps.get();
                     long toAddCount = (passTime * tokenCount) / (rule.getDurationInSec() * 1000);
-                    long newQps = toAddCount + restQps > maxCount ? (maxCount - acquireCount)
-                        : (restQps + toAddCount - acquireCount);
+                    long newQps = toAddCount + restQps > maxCount ? (maxCount - acquireCount) : (restQps + toAddCount - acquireCount);
 
                     if (newQps < 0) {
                         return false;
@@ -185,14 +196,17 @@ public final class ParamFlowChecker {
                     Thread.yield();
                 }
             } else {
+                //这里还不能生成token,用之前生成的
                 AtomicLong oldQps = tokenCounters.get(value);
                 if (oldQps != null) {
                     long oldQpsValue = oldQps.get();
                     if (oldQpsValue - acquireCount >= 0) {
+                        //如果设置成功,说明可以通过
                         if (oldQps.compareAndSet(oldQpsValue, oldQpsValue - acquireCount)) {
                             return true;
                         }
                     } else {
+                        //说明不能通过,当前的token的次数不足以抵扣当前要消费的token次数
                         return false;
                     }
                 }
@@ -201,8 +215,7 @@ public final class ParamFlowChecker {
         }
     }
 
-    static boolean passThrottleLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount,
-                                          Object value) {
+    static boolean passThrottleLocalCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int acquireCount, Object value) {
         ParameterMetric metric = getParameterMetric(resourceWrapper);
         CacheMap<Object, AtomicLong> timeRecorderMap = metric == null ? null : metric.getRuleTimeCounter(rule);
         if (timeRecorderMap == null) {
@@ -210,8 +223,9 @@ public final class ParamFlowChecker {
         }
 
         // Calculate max token count (threshold)
+        //获取特殊值设置的次数
         Set<Object> exclusionItems = rule.getParsedHotItems().keySet();
-        long tokenCount = (long)rule.getCount();
+        long tokenCount = (long) rule.getCount();
         if (exclusionItems.contains(value)) {
             tokenCount = rule.getParsedHotItems().get(value);
         }
@@ -220,13 +234,19 @@ public final class ParamFlowChecker {
             return false;
         }
 
+
+        //1次token需要多长时间, 然后该次请求需要消耗多长时间(该次请求需要多少个token)
         long costTime = Math.round(1.0 * 1000 * acquireCount * rule.getDurationInSec() / tokenCount);
         while (true) {
+
+            //当前时间
             long currentTime = TimeUtil.currentTimeMillis();
             AtomicLong timeRecorder = timeRecorderMap.putIfAbsent(value, new AtomicLong(currentTime));
             if (timeRecorder == null) {
                 return true;
             }
+
+
             //AtomicLong timeRecorder = timeRecorderMap.get(value);
             long lastPassTime = timeRecorder.get();
             long expectedTime = lastPassTime + costTime;
@@ -236,6 +256,7 @@ public final class ParamFlowChecker {
                 if (lastPastTimeRef.compareAndSet(lastPassTime, currentTime)) {
                     long waitTime = expectedTime - currentTime;
                     if (waitTime > 0) {
+                        //休眠一段时间, 还未到期望的时间
                         lastPastTimeRef.set(expectedTime);
                         try {
                             TimeUnit.MILLISECONDS.sleep(waitTime);
@@ -243,8 +264,10 @@ public final class ParamFlowChecker {
                             RecordLog.warn("passThrottleLocalCheck: wait interrupted", e);
                         }
                     }
+                    //到了期望的时间,就直接pass通过
                     return true;
                 } else {
+                    //设置失败,说明并发冲突比较多,这里放弃当前线程的执行权(但是还会争夺执行权)
                     Thread.yield();
                 }
             } else {
@@ -261,7 +284,7 @@ public final class ParamFlowChecker {
     @SuppressWarnings("unchecked")
     private static Collection<Object> toCollection(Object value) {
         if (value instanceof Collection) {
-            return (Collection<Object>)value;
+            return (Collection<Object>) value;
         } else if (value.getClass().isArray()) {
             List<Object> params = new ArrayList<Object>();
             int length = Array.getLength(value);
@@ -275,18 +298,20 @@ public final class ParamFlowChecker {
         }
     }
 
-    private static boolean passClusterCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count,
-                                            Object value) {
+    private static boolean passClusterCheck(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count, Object value) {
         try {
             Collection<Object> params = toCollection(value);
 
+            //pick
             TokenService clusterService = pickClusterService();
             if (clusterService == null) {
                 // No available cluster client or server, fallback to local or
                 // pass in need.
+                // 如果没有服务,就走本地操作
                 return fallbackToLocalOrPass(resourceWrapper, rule, count, params);
             }
 
+            //挑选了一个服务
             TokenResult result = clusterService.requestParamToken(rule.getClusterConfig().getFlowId(), count, params);
             switch (result.getStatus()) {
                 case TokenResultStatus.OK:
@@ -294,6 +319,7 @@ public final class ParamFlowChecker {
                 case TokenResultStatus.BLOCKED:
                     return false;
                 default:
+                    //如果出现异常的情况,走本地的情况(来进行兜底)
                     return fallbackToLocalOrPass(resourceWrapper, rule, count, params);
             }
         } catch (Throwable ex) {
@@ -302,8 +328,7 @@ public final class ParamFlowChecker {
         }
     }
 
-    private static boolean fallbackToLocalOrPass(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count,
-                                                 Object value) {
+    private static boolean fallbackToLocalOrPass(ResourceWrapper resourceWrapper, ParamFlowRule rule, int count, Object value) {
         if (rule.getClusterConfig().isFallbackToLocalWhenFail()) {
             return passLocalCheck(resourceWrapper, rule, count, value);
         } else {
@@ -313,9 +338,12 @@ public final class ParamFlowChecker {
     }
 
     private static TokenService pickClusterService() {
+        //客户端和服务端分开部署
         if (ClusterStateManager.isClient()) {
             return TokenClientProvider.getClient();
         }
+
+        //嵌入部署,有可能客服端和服务商都是一个机器
         if (ClusterStateManager.isServer()) {
             return EmbeddedClusterTokenServerProvider.getServer();
         }

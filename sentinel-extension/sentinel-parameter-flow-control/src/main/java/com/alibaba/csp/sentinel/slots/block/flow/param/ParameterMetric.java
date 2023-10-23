@@ -42,16 +42,25 @@ public class ParameterMetric {
 
     /**
      * Format: (rule, (value, timeRecorder))
+     * <p>
+     * 时间
      *
      * @since 1.6.0
      */
     private final Map<ParamFlowRule, CacheMap<Object, AtomicLong>> ruleTimeCounters = new HashMap<>();
+
+
     /**
      * Format: (rule, (value, tokenCounter))
      *
      * @since 1.6.0
      */
     private final Map<ParamFlowRule, CacheMap<Object, AtomicLong>> ruleTokenCounter = new HashMap<>();
+
+
+    /**
+     * Format: (paramIndex,(value,threadCounter))
+     */
     private final Map<Integer, CacheMap<Object, AtomicInteger>> threadCountMap = new HashMap<>();
 
     /**
@@ -114,8 +123,7 @@ public class ParameterMetric {
         if (!threadCountMap.containsKey(rule.getParamIdx())) {
             synchronized (lock) {
                 if (threadCountMap.get(rule.getParamIdx()) == null) {
-                    threadCountMap.put(rule.getParamIdx(),
-                        new ConcurrentLinkedHashMapWrapper<Object, AtomicInteger>(THREAD_COUNT_MAX_CAPACITY));
+                    threadCountMap.put(rule.getParamIdx(), new ConcurrentLinkedHashMapWrapper<Object, AtomicInteger>(THREAD_COUNT_MAX_CAPACITY));
                 }
             }
         }
@@ -140,7 +148,7 @@ public class ParameterMetric {
                 }
                 if (Collection.class.isAssignableFrom(arg.getClass())) {
 
-                    for (Object value : ((Collection)arg)) {
+                    for (Object value : ((Collection) arg)) {
                         AtomicInteger oldValue = threadCount.putIfAbsent(value, new AtomicInteger());
                         if (oldValue != null) {
                             int currentValue = oldValue.decrementAndGet();
@@ -200,7 +208,7 @@ public class ParameterMetric {
                 }
 
                 if (Collection.class.isAssignableFrom(arg.getClass())) {
-                    for (Object value : ((Collection)arg)) {
+                    for (Object value : ((Collection) arg)) {
                         AtomicInteger oldValue = threadCount.putIfAbsent(value, new AtomicInteger());
                         if (oldValue != null) {
                             oldValue.incrementAndGet();

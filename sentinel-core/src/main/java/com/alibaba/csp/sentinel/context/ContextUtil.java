@@ -111,12 +111,17 @@ public class ContextUtil {
      */
     public static Context enter(String name, String origin) {
         if (Constants.CONTEXT_DEFAULT_NAME.equals(name)) {
-            throw new ContextNameDefineException(
-                "The " + Constants.CONTEXT_DEFAULT_NAME + " can't be permit to defined!");
+            throw new ContextNameDefineException("The " + Constants.CONTEXT_DEFAULT_NAME + " can't be permit to defined!");
         }
         return trueEnter(name, origin);
     }
 
+
+    /**
+     * @param name   不是资源名称(上下文名称)
+     * @param origin
+     * @return
+     */
     protected static Context trueEnter(String name, String origin) {
         Context context = contextHolder.get();
         if (context == null) {
@@ -164,8 +169,7 @@ public class ContextUtil {
         contextHolder.set(NULL_CONTEXT);
         // Don't need to be thread-safe.
         if (shouldWarn) {
-            RecordLog.warn("[SentinelStatusChecker] WARN: Amount of context exceeds the threshold "
-                + Constants.MAX_CONTEXT_NAME_SIZE + ". Entries in new contexts will NOT take effect!");
+            RecordLog.warn("[SentinelStatusChecker] WARN: Amount of context exceeds the threshold " + Constants.MAX_CONTEXT_NAME_SIZE + ". Entries in new contexts will NOT take effect!");
             shouldWarn = false;
         }
     }

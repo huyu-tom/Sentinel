@@ -1,10 +1,19 @@
 # Sentinel default ProcessorSlots
+# 不同的上下文
 com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
+# 用来表示一个资源对应一个集群节点(该集群节点非部署的集群概念,而是在任何上下文的情况下,代表一个资源对应一个唯一的节点)
 com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
+# 日志
 com.alibaba.csp.sentinel.slots.logger.LogSlot
+# 统计节点
 com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
+# 黑白名单
 com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot
+# 系统规则
 com.alibaba.csp.sentinel.slots.system.SystemSlot
+# 流控
 com.alibaba.csp.sentinel.slots.block.flow.FlowSlot
+# 降级
 com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot
+# 熔断
 com.alibaba.csp.sentinel.slots.block.degrade.DefaultCircuitBreakerSlot

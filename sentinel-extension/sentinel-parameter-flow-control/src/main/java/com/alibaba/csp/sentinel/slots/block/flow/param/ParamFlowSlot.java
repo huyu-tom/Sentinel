@@ -35,8 +35,7 @@ import java.util.List;
 public class ParamFlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
-    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
-                      boolean prioritized, Object... args) throws Throwable {
+    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count, boolean prioritized, Object... args) throws Throwable {
         if (!ParamFlowRuleManager.hasRules(resourceWrapper.getName())) {
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
             return;
@@ -67,15 +66,36 @@ public class ParamFlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         if (args == null) {
             return;
         }
+
+        //资源是否存在
         if (!ParamFlowRuleManager.hasRules(resourceWrapper.getName())) {
             return;
         }
+
+
+        // 1个资源有多个规则, 多个参数(多个索引)
         List<ParamFlowRule> rules = ParamFlowRuleManager.getRulesOfResource(resourceWrapper.getName());
 
+
+        //多个规则
         for (ParamFlowRule rule : rules) {
+
             applyRealParamIdx(rule, args.length);
 
             // Initialize the parameter metrics.
+
+            //   每个资源都有一个运行指标
+            //  (resourceName,(paramMetric))
+
+            //  paramMetric:
+
+            //   流控规则: qps (流控的效果(令牌桶(在一定时间内生成指定的token个数,然后在这段时间消费完毕),漏桶算法(平均速率)))
+            //   (rule,(value,tokenCounter))
+            //   (rule,(value,timeRecorder))
+
+
+            //   流控规则: 线程个数
+            //   (paramIndex,(value,threadCounter))
             ParameterMetricStorage.initParamMetricsFor(resourceWrapper, rule);
 
             if (!ParamFlowChecker.passCheck(resourceWrapper, rule, count, args)) {

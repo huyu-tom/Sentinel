@@ -34,9 +34,11 @@ import com.alibaba.csp.sentinel.util.function.BiConsumer;
  */
 class CtEntry extends Entry {
 
+    //有可能存在资源嵌套资源
     protected Entry parent = null;
     protected Entry child = null;
 
+    //执行的链条
     protected ProcessorSlot<Object> chain;
     protected Context context;
     protected LinkedList<BiConsumer<Context, Entry>> exitHandlers;
@@ -75,8 +77,7 @@ class CtEntry extends Entry {
                 try {
                     handler.accept(ctx, this);
                 } catch (Exception e) {
-                    RecordLog.warn("Error occurred when invoking entry exit handler, current entry: "
-                            + resourceWrapper.getName(), e);
+                    RecordLog.warn("Error occurred when invoking entry exit handler, current entry: " + resourceWrapper.getName(), e);
                 }
             }
             exitHandlers = null;
@@ -99,8 +100,7 @@ class CtEntry extends Entry {
 
             if (context.getCurEntry() != this) {
                 //不是按照资源的递归调用顺序来进行exit,就会导致有问题
-                String curEntryNameInContext = context.getCurEntry() == null ? null
-                        : context.getCurEntry().getResourceWrapper().getName();
+                String curEntryNameInContext = context.getCurEntry() == null ? null : context.getCurEntry().getResourceWrapper().getName();
 
                 //但是还是要维持正确的调用链条
                 // Clean previous call stack.
@@ -109,9 +109,7 @@ class CtEntry extends Entry {
                     e.exit(count, args);
                     e = (CtEntry) e.parent;
                 }
-                String errorMessage = String.format("The order of entry exit can't be paired with the order of entry"
-                                + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext,
-                        resourceWrapper.getName());
+                String errorMessage = String.format("The order of entry exit can't be paired with the order of entry" + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext, resourceWrapper.getName());
 
                 //然后抛出异常,他是一个运行时的异常
                 throw new ErrorEntryFreeException(errorMessage);

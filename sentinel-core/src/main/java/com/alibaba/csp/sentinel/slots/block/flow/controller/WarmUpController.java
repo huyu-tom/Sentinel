@@ -119,7 +119,7 @@ public class WarmUpController implements TrafficShapingController {
 
         // slope
         // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
-        // - thresholdPermits);  增长的坡度
+        // - thresholdPermits);
         slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
     }
 
@@ -157,6 +157,9 @@ public class WarmUpController implements TrafficShapingController {
 
 
             //计算此时一秒之内能够生成多少token的数量,在同一秒的该值也是一样的
+            //1. (aboveToken * slope + (1.0 / count)) 防止生成token的个数大于count(该1s最大可以生成的token)
+            // 1 / (500*slope(0.00004)+1/100) =   33.3333333333 = 34
+            //2.  而且aboveToken为0的时候,  1/0 这是有问题的, 加上  1/1000 ,不就相当于1000
             double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
 
 
@@ -191,7 +194,7 @@ public class WarmUpController implements TrafficShapingController {
         long newValue = coolDownTokens(currentTime, passQps);
 
 
-        //减去上一秒的拿到令牌的qps
+        //减去上一秒的拿到令牌的qps,只有一个减
         if (storedTokens.compareAndSet(oldValue, newValue)) {
             long currentValue = storedTokens.addAndGet(0 - passQps);
             if (currentValue < 0) {
@@ -215,29 +218,31 @@ public class WarmUpController implements TrafficShapingController {
         long newValue = oldValue;
 
         // 添加令牌的判断前提条件:
-        // 当令牌的消耗程度远远低于警戒线的时候
         if (oldValue < warningToken) {
             // 会出现以下2种情况
-            // 1. 低于警戒线,正常生成token
+            // 1. 低于警戒线,正常生成token(说明达到了高水平了(可能还不稳定)),如果后期的时间还能继续达到的话,说明一直都很热,oldValue会越来越小或者永远都维持在<警戒线的情况,
+            // 如果达到最高水平之后 情况一:  获取流量没有前期大,趋势是越来越少, 情况二: 直接跌入谷底(没有请求)(持续的时间可以通过currentTime - lastFilledTime.get() 来计算) 这样又会将系统带入冷系统的情况(说明oldValue会越来越大)
             // 2. 或者第一次进来的时候,lastFilledTime为0,oldValue也是0,所以newValue是一个很大的值,他是大于maxToken的值
-            // (currentTime - lastFilledTime.get()) 从上一次生成到现在来生成过去了多少了时间段 1s或者2s...., 然后乘以count,总共在这段时间可以生成的的token,但是这里是ms,变成秒
-            // 假设currentTime是 3000ms
-            // lastFilledTime是 1000ms
-            // (3000MS-1000MS)/1000 = 2  -> 计算上一次生成token的时间和现在生成token的时间过去了多少秒,这里是2s
-            // 如果这里1s的qps是20, 20*2 = 40 (40个token)
             newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
         } else if (oldValue > warningToken) {
             //代表这段时间之内,passQps(消费的速率)都是低于(count/coldFactor)生产的速率,就还是正常的生成token
             //例如1s的qps是20,但是流量他是每秒只请求1次,而且这十秒之内或者几秒之内都是如此,那我们就当做还没有预热,当做下一次开始预热(可能下一次还是这样,也可能不是这样)
             if (passQps < (int) count / coldFactor) {
+                // 1. 流量的特点: 一直都几乎没有达到
                 // 没有达到冷启动的最低要求,例如1s中可以过20qps, 但是passQps是1 <  20 / 3 = 6
                 // 上一次还是最大的token(oldValue) + (本次的count(有可能中间隔了几秒,就相当于隔了几秒没有去请求,份额得加上)
                 // 最终大概率还是maxToken或者无限接近于maxToken
+
+                // 2. 流量的特点: 一下子达到了,一下子又没有达到
+                //但是达到了又不能不算,所以采用了普通生成token的算法,
+
+
+                //而且一直低流量的话,会慢慢的蚕食掉token,使其通过了警戒线,从而可以一下子达到了最高的限流(这就是这块代码的作用)
                 newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
             }
         }
 
-        //在预热阶段,还是采用之前生成的token
+        //防止生成的token大于了最大的token
         return Math.min(newValue, maxToken);
     }
 }

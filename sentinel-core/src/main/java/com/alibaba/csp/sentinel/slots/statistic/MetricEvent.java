@@ -21,7 +21,7 @@ package com.alibaba.csp.sentinel.slots.statistic;
 public enum MetricEvent {
 
     /**
-     * Normal pass.
+     * Normal pass. QPS
      */
     PASS,
     /**

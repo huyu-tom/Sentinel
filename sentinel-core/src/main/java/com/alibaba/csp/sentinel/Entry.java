@@ -59,6 +59,7 @@ public abstract class Entry implements AutoCloseable {
     private long completeTimestamp;
 
     private Node curNode;
+
     /**
      * {@link Node} of the specific origin, Usually the origin is the Service Consumer.
      */
@@ -105,7 +106,7 @@ public abstract class Entry implements AutoCloseable {
      * Exit this entry. This method should invoke if and only if once at the end of the resource protection.
      *
      * @param count tokens to release.
-     * @param args extra parameters
+     * @param args  extra parameters
      * @throws ErrorEntryFreeException, if {@link Context#getCurEntry()} is not this entry.
      */
     public abstract void exit(int count, Object... args) throws ErrorEntryFreeException;
@@ -114,7 +115,7 @@ public abstract class Entry implements AutoCloseable {
      * Exit this entry.
      *
      * @param count tokens to release.
-     * @param args extra parameters
+     * @param args  extra parameters
      * @return next available entry after exit, that is the parent entry.
      * @throws ErrorEntryFreeException, if {@link Context#getCurEntry()} is not this entry.
      */
@@ -183,10 +184,10 @@ public abstract class Entry implements AutoCloseable {
      * Like {@code CompletableFuture} since JDK 8, it guarantees specified handler
      * is invoked when this entry terminated (exited), no matter it's blocked or permitted.
      * Use it when you did some STATEFUL operations on entries.
-     * 
+     *
      * @param handler handler function on the invocation terminates
      * @since 1.8.0
      */
     public abstract void whenTerminate(BiConsumer<Context, Entry> handler);
-    
+
 }

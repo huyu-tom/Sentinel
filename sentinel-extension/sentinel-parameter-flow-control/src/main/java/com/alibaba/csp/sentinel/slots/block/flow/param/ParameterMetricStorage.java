@@ -87,5 +87,6 @@ public final class ParameterMetricStorage {
         return metricsMap;
     }
 
-    private ParameterMetricStorage() {}
+    private ParameterMetricStorage() {
+    }
 }
