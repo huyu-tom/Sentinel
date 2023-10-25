@@ -105,6 +105,10 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         if (currentState.compareAndSet(State.OPEN, State.HALF_OPEN)) {
             notifyObservers(State.OPEN, State.HALF_OPEN, null);
             Entry entry = context.getCurEntry();
+
+            //如果是从打开变成半开的状态-> 相当于就放过该操作
+            //在放过之后,再来判断半开状态是是关闭还是打开
+            //如果出现了,就变成打开状态
             entry.whenTerminate(new BiConsumer<Context, Entry>() {
                 @Override
                 public void accept(Context context, Entry entry) {
@@ -122,7 +126,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         }
         return false;
     }
-    
+
     private void notifyObservers(CircuitBreaker.State prevState, CircuitBreaker.State newState, Double snapshotValue) {
         for (CircuitBreakerStateChangeObserver observer : observerRegistry.getStateChangeObservers()) {
             observer.onStateChange(prevState, newState, rule, snapshotValue);

@@ -72,7 +72,7 @@ public class FlowRule extends AbstractRule {
 
     /**
      * Rate limiter control behavior.
-     * 0. default(reject directly), 1. warm up, 2. rate limiter, 3. warm up + rate limiter
+     * 0. default(reject directly), 1. warm up, 2. rate limiter(), 3. warm up + rate limiter
      */
     private int controlBehavior = RuleConstant.CONTROL_BEHAVIOR_DEFAULT;
 

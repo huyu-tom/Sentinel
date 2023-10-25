@@ -33,14 +33,17 @@ import com.alibaba.csp.sentinel.util.function.BiConsumer;
  * @author Eric Zhao
  */
 class CtEntry extends Entry {
-
     //有可能存在资源嵌套资源
     protected Entry parent = null;
     protected Entry child = null;
 
     //执行的链条
     protected ProcessorSlot<Object> chain;
+
+    //当前上下文
     protected Context context;
+
+    //
     protected LinkedList<BiConsumer<Context, Entry>> exitHandlers;
 
     CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {

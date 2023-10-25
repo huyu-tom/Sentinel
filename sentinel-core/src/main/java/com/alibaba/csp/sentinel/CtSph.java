@@ -127,8 +127,15 @@ public class CtSph implements Sph {
      */
     private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args) throws BlockException {
 
-        //从上下文获取
-        //存储这入口node(DefaultNode)
+        //上下文可以外部设置,如果未设置,就采用默认的上下文
+        //上下文类似于资源隔离,虽然同属一个appName,但是也可能分为各种情况
+        //虽然定义了一个资源a,但是他被很多情况调用,这样的话,我就可以分为各种情况(上下文),同一种上下文有这个appName所有的资源
+        //按照各种不同的情况进行统计,所以每个上下文都有一个DefaultNode(用来统计该上下文下的所有资源的情况)
+        //每个上下文都有一个RootNode,他代表所有的情况和所有资源的统计情况
+
+        // SlotChain 中的 SqlNodeSelectSlot链条的功能
+        //相同的上下文精确到每个资源的时候,相同的上下文,都有唯一的DefaultNode,用来统计该资源在该上下文情况下的情况
+
         Context context = ContextUtil.getContext();
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
@@ -146,7 +153,7 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
 
-        //每个资源都有自己的链条,最大是6000条
+        //每个资源都有自己的链条,最大是6000条,每个资源都有唯一一个链条
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -154,6 +161,7 @@ public class CtSph implements Sph {
          * so no rule checking will be done.
          */
         if (chain == null) {
+
             return new CtEntry(resourceWrapper, null, context);
         }
 
@@ -170,10 +178,12 @@ public class CtSph implements Sph {
         //     资源B
         //   }
         //
+        //资源嵌套调用 Entry可能可能存在链表 ,进入就拉链,并且将上下文的当前链条要被赋值为当前的Entry
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
         } catch (BlockException e1) {
+            //出现了sentinel内部的某个规则没有通过的异常
             e.exit(count, args);
             throw e1;
         } catch (Throwable e1) {

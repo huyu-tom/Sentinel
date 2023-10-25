@@ -5,7 +5,7 @@ com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
 com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
 # 日志
 com.alibaba.csp.sentinel.slots.logger.LogSlot
-# 统计节点
+# 统计节点(给不同的上下文)
 com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
 # 黑白名单
 com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot

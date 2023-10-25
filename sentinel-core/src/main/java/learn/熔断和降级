@@ -1,0 +1,14 @@
+# 降级
+com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot
+# 熔断
+com.alibaba.csp.sentinel.slots.block.degrade.DefaultCircuitBreakerSlot
+
+
+
+熔断器:
+   1. 关闭,半开,打开
+降级规则:
+  1. 异常数
+  2. 异常比例
+  3. 平均响应时间
+

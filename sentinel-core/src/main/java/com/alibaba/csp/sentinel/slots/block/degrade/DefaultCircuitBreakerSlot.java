@@ -38,8 +38,7 @@ import java.util.List;
 public class DefaultCircuitBreakerSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
-    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
-                      boolean prioritized, Object... args) throws Throwable {
+    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count, boolean prioritized, Object... args) throws Throwable {
         performChecking(context, resourceWrapper);
 
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
@@ -87,6 +86,7 @@ public class DefaultCircuitBreakerSlot extends AbstractLinkedProcessorSlot<Defau
         if (curEntry.getBlockError() == null) {
             // passed request
             for (CircuitBreaker circuitBreaker : circuitBreakers) {
+                //统计数据
                 circuitBreaker.onRequestComplete(context);
             }
         }
