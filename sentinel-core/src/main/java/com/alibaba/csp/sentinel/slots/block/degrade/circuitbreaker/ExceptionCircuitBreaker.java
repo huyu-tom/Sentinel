@@ -34,10 +34,16 @@ import static com.alibaba.csp.sentinel.slots.block.RuleConstant.DEGRADE_GRADE_EX
  */
 public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
 
+    //异常数和异常比例(记录总数和当前异常数)
     private final int strategy;
+
+    //最小请求
     private final int minRequestAmount;
+
+    //异常数(0,无穷大)或者异常比例(0,1]
     private final double threshold;
 
+    //用来统计异常数和异常比例
     private final LeapArray<SimpleErrorCounter> stat;
 
     public ExceptionCircuitBreaker(DegradeRule rule) {
@@ -79,6 +85,12 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
         handleStateChangeWhenThresholdExceeded(error);
     }
 
+
+    /**
+     * 当阈值超过处理状态的变化(熔断器的关闭,半开,打开)
+     *
+     * @param error
+     */
     private void handleStateChangeWhenThresholdExceeded(Throwable error) {
         //如果是打开状态,就直接返回
         if (currentState.get() == State.OPEN) {
@@ -152,10 +164,7 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
 
         @Override
         public String toString() {
-            return "SimpleErrorCounter{" +
-                    "errorCount=" + errorCount +
-                    ", totalCount=" + totalCount +
-                    '}';
+            return "SimpleErrorCounter{" + "errorCount=" + errorCount + ", totalCount=" + totalCount + '}';
         }
     }
 

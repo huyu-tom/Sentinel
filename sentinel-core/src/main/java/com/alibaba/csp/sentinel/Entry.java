@@ -65,9 +65,14 @@ public abstract class Entry implements AutoCloseable {
      */
     private Node originNode;
 
+
+    //业务上的异常信息
     private Throwable error;
+
+    //规则限制的异常信息
     private BlockException blockError;
 
+    //资源
     protected final ResourceWrapper resourceWrapper;
 
     public Entry(ResourceWrapper resourceWrapper) {

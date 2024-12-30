@@ -33,145 +33,156 @@ import com.alibaba.csp.sentinel.util.function.BiConsumer;
  * @author Eric Zhao
  */
 class CtEntry extends Entry {
-    //有可能存在资源嵌套资源
-    protected Entry parent = null;
-    protected Entry child = null;
 
-    //执行的链条
-    protected ProcessorSlot<Object> chain;
+  //有可能存在资源嵌套资源
+  protected Entry parent = null;
+  protected Entry child = null;
 
-    //当前上下文
-    protected Context context;
+  //执行的链条
+  protected ProcessorSlot<Object> chain;
 
-    //
-    protected LinkedList<BiConsumer<Context, Entry>> exitHandlers;
+  //当前上下文
+  protected Context context;
 
-    CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {
-        super(resourceWrapper);
-        this.chain = chain;
-        this.context = context;
+  //退出时候的回调(用于熔断),如果将开始是关闭状态,直接可过，如果是打开状态(看看有没有过时间,时间过了之后),就变成
+  //半开状态(放了一个请求过去),如果还是出现了熔断异常,就变成打开,如果没有的话,就变成关闭
+  protected LinkedList<BiConsumer<Context, Entry>> exitHandlers;
 
-        setUpEntryFor(context);
+  CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {
+    super(resourceWrapper);
+    this.chain = chain;
+    this.context = context;
+
+    setUpEntryFor(context);
+  }
+
+  private void setUpEntryFor(Context context) {
+    // The entry should not be associated to NullContext.
+    if (context instanceof NullContext) {
+      return;
     }
 
-    private void setUpEntryFor(Context context) {
-        // The entry should not be associated to NullContext.
-        if (context instanceof NullContext) {
-            return;
+    //每个资源在同一个上下文形成一个调用链
+    this.parent = context.getCurEntry();
+    if (parent != null) {
+      ((CtEntry) parent).child = this;
+    }
+    context.setCurEntry(this);
+  }
+
+  @Override
+  public void exit(int count, Object... args) throws ErrorEntryFreeException {
+    trueExit(count, args);
+  }
+
+  /**
+   * Note: the exit handlers will be called AFTER onExit of slot chain.
+   */
+  private void callExitHandlersAndCleanUp(Context ctx) {
+    if (exitHandlers != null && !exitHandlers.isEmpty()) {
+      for (BiConsumer<Context, Entry> handler : this.exitHandlers) {
+        try {
+          handler.accept(ctx, this);
+        } catch (Exception e) {
+          RecordLog.warn("Error occurred when invoking entry exit handler, current entry: "
+              + resourceWrapper.getName(), e);
         }
-        this.parent = context.getCurEntry();
+      }
+      exitHandlers = null;
+    }
+  }
+
+
+  /**
+   * @param context
+   * @param count
+   * @param args
+   * @throws ErrorEntryFreeException
+   */
+  protected void exitForContext(Context context, int count, Object... args)
+      throws ErrorEntryFreeException {
+    //只允许退出一次
+    if (context != null) {
+      // Null context should exit without clean-up.
+      if (context instanceof NullContext) {
+        return;
+      }
+
+      if (context.getCurEntry() != this) {
+        //不是按照资源的递归调用顺序来进行exit,就会导致有问题
+        String curEntryNameInContext = context.getCurEntry() == null ? null
+            : context.getCurEntry().getResourceWrapper().getName();
+
+        //但是还是要维持正确的调用链条
+        // Clean previous call stack.
+        CtEntry e = (CtEntry) context.getCurEntry();
+        while (e != null) {
+          e.exit(count, args);
+          e = (CtEntry) e.parent;
+        }
+        String errorMessage = String.format(
+            "The order of entry exit can't be paired with the order of entry"
+                + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext,
+            resourceWrapper.getName());
+
+        //然后抛出异常,他是一个运行时的异常
+        throw new ErrorEntryFreeException(errorMessage);
+      } else {
+        // Go through the onExit hook of all slots.
+        //回调   功能链条的退出函数
+        if (chain != null) {
+          chain.exit(context, resourceWrapper, count, args);
+        }
+
+        //一些设置到链条回调函数
+        // Go through the existing terminate handlers (associated to this invocation).
+        callExitHandlersAndCleanUp(context);
+
+        //保持上下文的链条
+        // Restore the call stack.
+        context.setCurEntry(parent);
         if (parent != null) {
-            ((CtEntry) parent).child = this;
+          ((CtEntry) parent).child = null;
         }
-        context.setCurEntry(this);
-    }
 
-    @Override
-    public void exit(int count, Object... args) throws ErrorEntryFreeException {
-        trueExit(count, args);
-    }
-
-    /**
-     * Note: the exit handlers will be called AFTER onExit of slot chain.
-     */
-    private void callExitHandlersAndCleanUp(Context ctx) {
-        if (exitHandlers != null && !exitHandlers.isEmpty()) {
-            for (BiConsumer<Context, Entry> handler : this.exitHandlers) {
-                try {
-                    handler.accept(ctx, this);
-                } catch (Exception e) {
-                    RecordLog.warn("Error occurred when invoking entry exit handler, current entry: " + resourceWrapper.getName(), e);
-                }
-            }
-            exitHandlers = null;
+        //如果该资源调用链条是第一条资源,如果上下文是默认的上下文,就要进行移除
+        if (parent == null) {
+          // Default context (auto entered) will be exited automatically.
+          //如果是系统自带的环境上下文名称,那么就系统来销毁
+          //如果是外部传入的话,就又用户自己来销毁
+          if (ContextUtil.isDefaultContext(context)) {
+            ContextUtil.exit();
+          }
         }
+
+        // Clean the reference of context in current entry to avoid duplicate exit.
+        clearEntryContext();
+      }
     }
+  }
 
 
-    /**
-     * @param context
-     * @param count
-     * @param args
-     * @throws ErrorEntryFreeException
-     */
-    protected void exitForContext(Context context, int count, Object... args) throws ErrorEntryFreeException {
-        if (context != null) {
-            // Null context should exit without clean-up.
-            if (context instanceof NullContext) {
-                return;
-            }
+  protected void clearEntryContext() {
+    this.context = null;
+  }
 
-            if (context.getCurEntry() != this) {
-                //不是按照资源的递归调用顺序来进行exit,就会导致有问题
-                String curEntryNameInContext = context.getCurEntry() == null ? null : context.getCurEntry().getResourceWrapper().getName();
-
-                //但是还是要维持正确的调用链条
-                // Clean previous call stack.
-                CtEntry e = (CtEntry) context.getCurEntry();
-                while (e != null) {
-                    e.exit(count, args);
-                    e = (CtEntry) e.parent;
-                }
-                String errorMessage = String.format("The order of entry exit can't be paired with the order of entry" + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext, resourceWrapper.getName());
-
-                //然后抛出异常,他是一个运行时的异常
-                throw new ErrorEntryFreeException(errorMessage);
-            } else {
-                // Go through the onExit hook of all slots.
-                //回调   功能链条的退出函数
-                if (chain != null) {
-                    chain.exit(context, resourceWrapper, count, args);
-                }
-
-                //一些设置到链条的回调函数
-                // Go through the existing terminate handlers (associated to this invocation).
-                callExitHandlersAndCleanUp(context);
-
-
-                //保持上下文的链条
-                // Restore the call stack.
-                context.setCurEntry(parent);
-                if (parent != null) {
-                    ((CtEntry) parent).child = null;
-                }
-
-                //如果该资源调用链条是第一条资源,如果上下文是默认的上下文,就要进行移除
-                if (parent == null) {
-                    // Default context (auto entered) will be exited automatically.
-                    if (ContextUtil.isDefaultContext(context)) {
-                        ContextUtil.exit();
-                    }
-                }
-
-
-                // Clean the reference of context in current entry to avoid duplicate exit.
-                clearEntryContext();
-            }
-        }
+  @Override
+  public void whenTerminate(BiConsumer<Context, Entry> handler) {
+    if (this.exitHandlers == null) {
+      this.exitHandlers = new LinkedList<>();
     }
+    this.exitHandlers.add(handler);
+  }
 
+  @Override
+  protected Entry trueExit(int count, Object... args) throws ErrorEntryFreeException {
+    exitForContext(context, count, args);
 
-    protected void clearEntryContext() {
-        this.context = null;
-    }
+    return parent;
+  }
 
-    @Override
-    public void whenTerminate(BiConsumer<Context, Entry> handler) {
-        if (this.exitHandlers == null) {
-            this.exitHandlers = new LinkedList<>();
-        }
-        this.exitHandlers.add(handler);
-    }
-
-    @Override
-    protected Entry trueExit(int count, Object... args) throws ErrorEntryFreeException {
-        exitForContext(context, count, args);
-
-        return parent;
-    }
-
-    @Override
-    public Node getLastNode() {
-        return parent == null ? null : parent.getCurNode();
-    }
+  @Override
+  public Node getLastNode() {
+    return parent == null ? null : parent.getCurNode();
+  }
 }

@@ -27,7 +27,7 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
 
         @Override
         public void entry(Context context, ResourceWrapper resourceWrapper, Object t, int count, boolean prioritized, Object... args)
-            throws Throwable {
+                throws Throwable {
             super.fireEntry(context, resourceWrapper, t, count, prioritized, args);
         }
 
@@ -37,6 +37,8 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
         }
 
     };
+
+
     AbstractLinkedProcessorSlot<?> end = first;
 
     @Override
@@ -71,7 +73,7 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, Object t, int count, boolean prioritized, Object... args)
-        throws Throwable {
+            throws Throwable {
         first.transformEntry(context, resourceWrapper, t, count, prioritized, args);
     }
 

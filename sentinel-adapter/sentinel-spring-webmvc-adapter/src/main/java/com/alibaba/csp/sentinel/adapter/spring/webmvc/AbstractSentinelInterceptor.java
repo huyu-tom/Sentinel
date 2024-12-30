@@ -35,8 +35,8 @@ import org.springframework.web.servlet.ModelAndView;
 
 /**
  * Since request may be reprocessed in flow if any forwarding or including or other action
- * happened (see {@link javax.servlet.ServletRequest#getDispatcherType()}) we will only 
- * deal with the initial request. So we use <b>reference count</b> to track in 
+ * happened (see {@link javax.servlet.ServletRequest#getDispatcherType()}) we will only
+ * deal with the initial request. So we use <b>reference count</b> to track in
  * dispathing "onion" though which we could figure out whether we are in initial type "REQUEST".
  * That means the sub-requests which we rarely meet in practice will NOT be recorded in Sentinel.
  * <p>
@@ -48,7 +48,7 @@ import org.springframework.web.servlet.ModelAndView;
  *     return mav;
  * }
  * </pre>
- * 
+ *
  * @author kaizi2009
  * @since 1.7.1
  */
@@ -64,40 +64,39 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
         AssertUtil.assertNotBlank(config.getRequestAttributeName(), "requestAttributeName should not be blank");
         this.baseWebMvcConfig = config;
     }
-    
+
     /**
      * @param request
      * @param rcKey
      * @param step
-     * @return reference count after increasing (initial value as zero to be increased) 
+     * @return reference count after increasing (initial value as zero to be increased)
      */
     private Integer increaseReferece(HttpServletRequest request, String rcKey, int step) {
         Object obj = request.getAttribute(rcKey);
-        
+
         if (obj == null) {
             // initial
             obj = Integer.valueOf(0);
         }
-        
-        Integer newRc = (Integer)obj + step;
+
+        Integer newRc = (Integer) obj + step;
         request.setAttribute(rcKey, newRc);
         return newRc;
     }
-    
+
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-        throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         try {
             String resourceName = getResourceName(request);
 
             if (StringUtil.isEmpty(resourceName)) {
                 return true;
             }
-            
+
             if (increaseReferece(request, this.baseWebMvcConfig.getRequestRefName(), 1) != 1) {
                 return true;
             }
-            
+
             // Parse the request origin using registered origin parser.
             String origin = parseOrigin(request);
             String contextName = getContextName(request);
@@ -134,33 +133,30 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
-                                Object handler, Exception ex) throws Exception {
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         if (increaseReferece(request, this.baseWebMvcConfig.getRequestRefName(), -1) != 0) {
             return;
         }
-        
+
         Entry entry = getEntryInRequest(request, baseWebMvcConfig.getRequestAttributeName());
         if (entry == null) {
             // should not happen
-            RecordLog.warn("[{}] No entry found in request, key: {}",
-                    getClass().getSimpleName(), baseWebMvcConfig.getRequestAttributeName());
+            RecordLog.warn("[{}] No entry found in request, key: {}", getClass().getSimpleName(), baseWebMvcConfig.getRequestAttributeName());
             return;
         }
-        
+
         traceExceptionAndExit(entry, ex);
         removeEntryInRequest(request);
         ContextUtil.exit();
     }
 
     @Override
-    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
-                           ModelAndView modelAndView) throws Exception {
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
     }
 
     protected Entry getEntryInRequest(HttpServletRequest request, String attrKey) {
         Object entryObject = request.getAttribute(attrKey);
-        return entryObject == null ? null : (Entry)entryObject;
+        return entryObject == null ? null : (Entry) entryObject;
     }
 
     protected void removeEntryInRequest(HttpServletRequest request) {
@@ -176,8 +172,7 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
         }
     }
 
-    protected void handleBlockException(HttpServletRequest request, HttpServletResponse response, BlockException e)
-        throws Exception {
+    protected void handleBlockException(HttpServletRequest request, HttpServletResponse response, BlockException e) throws Exception {
         if (baseWebMvcConfig.getBlockExceptionHandler() != null) {
             baseWebMvcConfig.getBlockExceptionHandler().handle(request, response, e);
         } else {

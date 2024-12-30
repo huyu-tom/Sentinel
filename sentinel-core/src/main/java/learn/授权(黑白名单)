@@ -1,0 +1,24 @@
+如果A app 调用 B app的资源
+
+如果A不允许调用B的资源
+
+通过AuthorityRule中 limitApp,多个用,号隔开
+然后会通过上下文中 origin来进行判断
+
+
+分为黑白名单
+黑名单就是在该名单上的是不能调用,其他都能调用
+白名单就是在该名单上的就能调用,其他都不能调用
+
+
+
+规则定义:
+AuthorityRule
+    白名单
+    public static final int AUTHORITY_WHITE = 0;
+    黑名单
+    public static final int AUTHORITY_BLACK = 1;
+
+逻辑实现:
+AuthoritySlot
+AuthorityRuleChecker

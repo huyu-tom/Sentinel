@@ -161,7 +161,6 @@ public class CtSph implements Sph {
          * so no rule checking will be done.
          */
         if (chain == null) {
-
             return new CtEntry(resourceWrapper, null, context);
         }
 

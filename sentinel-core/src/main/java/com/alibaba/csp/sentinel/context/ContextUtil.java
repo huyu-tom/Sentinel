@@ -141,6 +141,7 @@ public class ContextUtil {
                                 return NULL_CONTEXT;
                             } else {
                                 node = new EntranceNode(new StringResourceWrapper(name, EntryType.IN), null);
+
                                 // Add entrance node.
                                 Constants.ROOT.addChild(node);
 
@@ -156,6 +157,7 @@ public class ContextUtil {
                 }
             }
             context = new Context(node, name);
+            //来源
             context.setOrigin(origin);
             contextHolder.set(context);
         }

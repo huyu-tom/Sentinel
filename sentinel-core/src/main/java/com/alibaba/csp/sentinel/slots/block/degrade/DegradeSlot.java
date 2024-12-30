@@ -37,49 +37,50 @@ import com.alibaba.csp.sentinel.spi.Spi;
 @Spi(order = Constants.ORDER_DEGRADE_SLOT)
 public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
-    @Override
-    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
-                      boolean prioritized, Object... args) throws Throwable {
-        performChecking(context, resourceWrapper);
+  @Override
+  public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
+      boolean prioritized, Object... args) throws Throwable {
+    performChecking(context, resourceWrapper);
 
-        fireEntry(context, resourceWrapper, node, count, prioritized, args);
+    fireEntry(context, resourceWrapper, node, count, prioritized, args);
+  }
+
+  void performChecking(Context context, ResourceWrapper r) throws BlockException {
+    List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
+    if (circuitBreakers == null || circuitBreakers.isEmpty()) {
+      return;
+    }
+    for (CircuitBreaker cb : circuitBreakers) {
+      if (!cb.tryPass(context)) {
+        throw new DegradeException(cb.getRule().getLimitApp(), cb.getRule());
+      }
+    }
+  }
+
+  @Override
+  public void exit(Context context, ResourceWrapper r, int count, Object... args) {
+    //有熔断和降级的异常
+    Entry curEntry = context.getCurEntry();
+    if (curEntry.getBlockError() != null) {
+      fireExit(context, r, count, args);
+      return;
     }
 
-    void performChecking(Context context, ResourceWrapper r) throws BlockException {
-        List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
-        if (circuitBreakers == null || circuitBreakers.isEmpty()) {
-            return;
-        }
-        for (CircuitBreaker cb : circuitBreakers) {
-            if (!cb.tryPass(context)) {
-                throw new DegradeException(cb.getRule().getLimitApp(), cb.getRule());
-            }
-        }
+    //没有规则也退出
+    List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
+    if (circuitBreakers == null || circuitBreakers.isEmpty()) {
+      fireExit(context, r, count, args);
+      return;
     }
 
-    @Override
-    public void exit(Context context, ResourceWrapper r, int count, Object... args) {
-        //有熔断和降级的异常
-        Entry curEntry = context.getCurEntry();
-        if (curEntry.getBlockError() != null) {
-            fireExit(context, r, count, args);
-            return;
-        }
-
-        //没有异常的时候
-        List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
-        if (circuitBreakers == null || circuitBreakers.isEmpty()) {
-            fireExit(context, r, count, args);
-            return;
-        }
-
-        if (curEntry.getBlockError() == null) {
-            // passed request
-            for (CircuitBreaker circuitBreaker : circuitBreakers) {
-                circuitBreaker.onRequestComplete(context);
-            }
-        }
-
-        fireExit(context, r, count, args);
+    //没有熔断降级的异常
+    if (curEntry.getBlockError() == null) {
+      // passed request
+      for (CircuitBreaker circuitBreaker : circuitBreakers) {
+        circuitBreaker.onRequestComplete(context);
+      }
     }
+
+    fireExit(context, r, count, args);
+  }
 }

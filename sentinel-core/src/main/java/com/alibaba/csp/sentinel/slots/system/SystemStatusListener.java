@@ -60,16 +60,22 @@ public class SystemStatusListener implements Runnable {
              * observed. All values between 0.0 and 1.0 are possible depending of the activities going on in the
              * system. If the system recent cpu usage is not available, the method returns a negative value.
              */
+            //获取操作系统的CPU负载情况(0.0-1.0)之间
             double systemCpuUsage = osBean.getSystemCpuLoad();
 
             // calculate process cpu usage to support application running in container environment
             RuntimeMXBean runtimeBean = ManagementFactory.getPlatformMXBean(RuntimeMXBean.class);
             long newProcessCpuTime = osBean.getProcessCpuTime();
             long newProcessUpTime = runtimeBean.getUptime();
+
+            //CPU的核数
             int cpuCores = osBean.getAvailableProcessors();
-            long processCpuTimeDiffInMs = TimeUnit.NANOSECONDS
-                    .toMillis(newProcessCpuTime - processCpuTime);
+
+            //
+            long processCpuTimeDiffInMs = TimeUnit.NANOSECONDS.toMillis(newProcessCpuTime - processCpuTime);
             long processUpTimeDiffInMs = newProcessUpTime - processUpTime;
+
+
             double processCpuUsage = (double) processCpuTimeDiffInMs / processUpTimeDiffInMs / cpuCores;
             processCpuTime = newProcessCpuTime;
             processUpTime = newProcessUpTime;

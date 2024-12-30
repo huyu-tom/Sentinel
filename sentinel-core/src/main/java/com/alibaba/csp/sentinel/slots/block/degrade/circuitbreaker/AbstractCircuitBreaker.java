@@ -90,6 +90,12 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         this.nextRetryTimestamp = TimeUtil.currentTimeMillis() + recoveryTimeoutMs;
     }
 
+    /**
+     * 从关闭变成打开
+     *
+     * @param snapshotValue
+     * @return
+     */
     protected boolean fromCloseToOpen(double snapshotValue) {
         State prev = State.CLOSED;
         if (currentState.compareAndSet(prev, State.OPEN)) {
@@ -101,6 +107,12 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return false;
     }
 
+    /**
+     * 从打开变成半开(表示要放过一个流量过去)
+     *
+     * @param context
+     * @return
+     */
     protected boolean fromOpenToHalfOpen(Context context) {
         if (currentState.compareAndSet(State.OPEN, State.HALF_OPEN)) {
             notifyObservers(State.OPEN, State.HALF_OPEN, null);
@@ -127,12 +139,25 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return false;
     }
 
+    /**
+     * 用于扩展通知(状态发生改变的时候,要做哪些操作)
+     *
+     * @param prevState
+     * @param newState
+     * @param snapshotValue
+     */
     private void notifyObservers(CircuitBreaker.State prevState, CircuitBreaker.State newState, Double snapshotValue) {
         for (CircuitBreakerStateChangeObserver observer : observerRegistry.getStateChangeObservers()) {
             observer.onStateChange(prevState, newState, rule, snapshotValue);
         }
     }
 
+    /**
+     * 从半开变成打开
+     *
+     * @param snapshotValue
+     * @return
+     */
     protected boolean fromHalfOpenToOpen(double snapshotValue) {
         if (currentState.compareAndSet(State.HALF_OPEN, State.OPEN)) {
             updateNextRetryTimestamp();
@@ -142,6 +167,11 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return false;
     }
 
+    /**
+     * 从半开变成关闭
+     *
+     * @return
+     */
     protected boolean fromHalfOpenToClose() {
         if (currentState.compareAndSet(State.HALF_OPEN, State.CLOSED)) {
             resetStat();
@@ -151,6 +181,11 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return false;
     }
 
+    /**
+     * 转换为打开
+     *
+     * @param triggerValue
+     */
     protected void transformToOpen(double triggerValue) {
         State cs = currentState.get();
         switch (cs) {

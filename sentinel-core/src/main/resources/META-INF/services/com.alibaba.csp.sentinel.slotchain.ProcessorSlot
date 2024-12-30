@@ -11,7 +11,7 @@ com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
 com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot
 # 系统规则
 com.alibaba.csp.sentinel.slots.system.SystemSlot
-# 流控
+# 流控(直接,关联,链路(调用链路))
 com.alibaba.csp.sentinel.slots.block.flow.FlowSlot
 # 降级
 com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot

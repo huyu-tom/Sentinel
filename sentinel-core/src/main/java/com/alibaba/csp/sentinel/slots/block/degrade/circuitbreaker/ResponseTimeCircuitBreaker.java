@@ -28,6 +28,8 @@ import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
+ * 响应时间(啥响应时间是慢请求,并且慢请求占用所有请求的比例是如何的)
+ *
  * @author Eric Zhao
  * @since 1.8.0
  */
@@ -35,10 +37,16 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     private static final double SLOW_REQUEST_RATIO_MAX_VALUE = 1.0d;
 
+    //定义了该资源<=该响应时间的都是慢请求
     private final long maxAllowedRt;
+
+    //慢请求的比率
     private final double maxSlowRequestRatio;
+
+    //大于该值,并且阈值达到了,才会触发熔断机制
     private final int minRequestAmount;
 
+    //用于统计数据(滑动窗口)
     private final LeapArray<SlowRequestCounter> slidingCounter;
 
     public ResponseTimeCircuitBreaker(DegradeRule rule) {
@@ -88,9 +96,12 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     private void handleStateChangeWhenThresholdExceeded(long rt) {
         if (currentState.get() == State.OPEN) {
+            //如果已经打开了,就直接放行
             return;
         }
 
+        //如果是半开,当前请求是个啥状态(是否是慢请求),是的话,就变成打开
+        //如果不是的话,就关闭
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
@@ -102,6 +113,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             return;
         }
 
+        //再来按照比例操作
         List<SlowRequestCounter> counters = slidingCounter.values();
         long slowCount = 0;
         long totalCount = 0;
@@ -114,10 +126,12 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         }
         double currentRatio = slowCount * 1.0d / totalCount;
         if (currentRatio > maxSlowRequestRatio) {
+            //如果达到了最大的比例,就变成打开
             transformToOpen(currentRatio);
         }
-        if (Double.compare(currentRatio, maxSlowRequestRatio) == 0 &&
-                Double.compare(maxSlowRequestRatio, SLOW_REQUEST_RATIO_MAX_VALUE) == 0) {
+
+
+        if (Double.compare(currentRatio, maxSlowRequestRatio) == 0 && Double.compare(maxSlowRequestRatio, SLOW_REQUEST_RATIO_MAX_VALUE) == 0) {
             transformToOpen(currentRatio);
         }
     }
@@ -147,10 +161,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
         @Override
         public String toString() {
-            return "SlowRequestCounter{" +
-                    "slowCount=" + slowCount +
-                    ", totalCount=" + totalCount +
-                    '}';
+            return "SlowRequestCounter{" + "slowCount=" + slowCount + ", totalCount=" + totalCount + '}';
         }
     }
 
